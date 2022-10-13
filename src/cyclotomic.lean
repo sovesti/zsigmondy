@@ -1,13 +1,10 @@
 import ring_theory.polynomial.cyclotomic.basic
+import ring_theory.polynomial.cyclotomic.eval
 import algebra
 import data.finset
 import tactic
 
 variables {R : Ring} {n : ℕ} {a : R}
-
-def pow' {R : Ring} (n : ℕ) (a : R) := pow a n
-
-def polynomial_value (p : polynomial R) := p.sum pow'
 
 noncomputable theory
 
@@ -74,26 +71,6 @@ begin
     rw disjoint.comm,
     exact finset.sdiff_disjoint,
   }
-end
-
-lemma finset_bij {n : ℕ}   : 
-((finset.Ioc 0 (n / 2)).filter (λ (i : ℕ), i.coprime n)).prod 
-            (λ (x : ℕ), polynomial.X - 
-            polynomial.C (complex.exp (2 * ↑real.pi * ((↑n - ↑x) / ↑n) * complex.I))) =
-            ((finset.Ioc (n / 2) n).filter (λ (i : ℕ), i.coprime n)).prod 
-            (λ (x : ℕ), polynomial.X - 
-            polynomial.C (complex.exp (2 * ↑real.pi * (↑x / ↑n) * complex.I)))
-            :=
-begin
-  apply finset.prod_bij' (λ i h, n - i) _ _ (λ i h, n - i) _,
-  {
-    intros a ha,
-    dsimp,
-    simp only [finset.mem_filter, finset.mem_Ioc] at ha,
-    apply nat.sub_sub_self,
-    exact ha.1.2.trans (nat.div_le_self n 2),
-  },
-  all_goals { sorry, }
 end
 
 theorem prime_dvd_cyclotomic (hpos : 0 < n) 
@@ -216,8 +193,15 @@ begin
   } 
 end
 
-theorem cyclotomic_le_X_sub_one_pow {n : ℕ} {a : ℤ} [fintype (zmod n)ˣ] 
-(hposn : 0 < n) (hposa : 0 < a) : 
+lemma cyclotomic_eval_int_eq_eval_real {n : ℕ} {a : ℤ} :
+↑(polynomial.eval (a : ℤ) (polynomial.cyclotomic n ℤ)) = 
+        polynomial.eval (a : ℝ) (polynomial.cyclotomic n ℝ) :=
+begin
+  simp only [← polynomial.map_cyclotomic_int n ℝ, polynomial.eval_int_cast_map,
+          int.cast_id, eq_int_cast],
+end
+
+theorem cyclotomic_le_X_add_one_pow {n : ℕ} {a : ℤ} (hposn : 0 < n) (ha : 1 < a) : 
 polynomial.eval a (polynomial.cyclotomic n ℤ) ≤ (a + 1) ^ (n.totient) :=
 begin
   cases em (n = 1) with n_is_one n_ne_one,
@@ -235,177 +219,117 @@ begin
       polynomial.eval_one, nat.totient_two, pow_one],
     },
     {
-      have cyclotomic_eq_prod : polynomial.map (int.cast_ring_hom ℝ) (polynomial.cyclotomic n ℤ) = 
-      finset.prod (finset.filter (λ (i : ℕ), i.coprime n) (finset.range (n / 2))) (λ (i : ℕ), polynomial.X ^ 2 
-      - (polynomial.C (2 * (complex.exp (2 * ↑real.pi * (↑i / ↑n) * complex.I)).re)) * polynomial.X + 
-      polynomial.C 1),
+      have hn : 3 ≤ n,
       {
-        apply polynomial.map_injective complex.of_real _,
-        {
-          transitivity polynomial.map (int.cast_ring_hom ℂ) (polynomial.cyclotomic n ℤ),
-          {
-            simp only [polynomial.map_cyclotomic],
-          },
-          {
-            rw (polynomial.int_cyclotomic_spec n).1,
-            rw polynomial.map_prod,
-            simp only [coe_coe, map_mul, polynomial.C_bit0, map_one, polynomial.map_add, 
-            polynomial.map_sub, polynomial.map_pow, polynomial.map_X, polynomial.map_mul, 
-            polynomial.map_bit0, polynomial.map_one, polynomial.map_C, complex.of_real_eq_coe],
-            have h_x_sub_exp : ∀ (x : ℕ), polynomial.X ^ 2 - 
-            2 * 
-            polynomial.C ↑((complex.exp (2 * ↑real.pi * (↑x / ↑n) * complex.I)).re) * 
-            polynomial.X + 1 
-            = (polynomial.X - 
-            polynomial.C (complex.exp (2 * ↑real.pi * (↑x / ↑n) * complex.I))) * 
-            (polynomial.X - 
-            polynomial.C (complex.exp (2 * ↑real.pi * ((↑n - ↑x) / ↑n) * complex.I))),
-            {
-              intro x,
-              have h_lift_ne_zero : (n : ℂ) ≠ 0,
-              {
-                simp only [ne.def, nat.cast_eq_zero],
-                exact nat_ne_zero_of_pos hposn,
-              },
-              have h_free_term : 1 = 
-              -polynomial.C (complex.exp (2 * ↑real.pi * (↑x / ↑n) * complex.I)) 
-              * -polynomial.C (complex.exp (2 * ↑real.pi * ((↑n - ↑x) / ↑n) * complex.I)),
-              {
-                rw [neg_mul_neg, ← polynomial.C_mul, ← complex.exp_add,
-                ← right_distrib, ← left_distrib, ← div_sub_div_same,
-                sub_eq_neg_add, ← add_assoc, div_self, add_right_neg,
-                zero_add, mul_one, complex.exp_mul_I, complex.cos_two_pi, 
-                complex.sin_two_pi, zero_mul, add_zero, map_one],
-                exact h_lift_ne_zero,
-              },
-              repeat { rw sub_eq_neg_add polynomial.X _, },
-              rw right_distrib,
-              repeat { rw left_distrib, },
-              rw [← h_free_term, pow_two, sub_eq_neg_add, add_assoc, 
-              add_comm (polynomial.X * polynomial.X) 1, ← add_assoc, ← add_assoc,
-              add_right_cancel_iff,
-              add_comm 1 (-polynomial.C (complex.exp (2 * ↑real.pi * (↑x / ↑n) * complex.I)) * polynomial.X),
-              add_assoc, add_comm 1 (polynomial.X * -polynomial.C (complex.exp (2 * ↑real.pi * ((↑n - ↑x) / ↑n) * complex.I))),
-              ← add_assoc, add_right_cancel_iff, neg_mul, mul_neg, polynomial.X_mul_C,
-              ← neg_add, neg_inj, ← right_distrib, mul_eq_mul_right_iff],
-              left,
-              rw [← polynomial.C_add, two_mul, ← polynomial.C_add, polynomial.C_inj],
-              simp only [complex.exp_mul_I, complex.add_re, complex.mul_re, 
-              complex.I_re, mul_zero, complex.I_im, mul_one, zero_sub, 
-              complex.of_real_add, complex.of_real_neg, sub_div, div_self h_lift_ne_zero,
-              mul_sub, complex.sin_two_pi_sub, complex.cos_two_pi_sub],
-              let t : ℝ := 2 * real.pi * (↑x / ↑n),
-              have htdef : t = 2 * real.pi * (↑x / ↑n) := by refl,
-              have ht : 2 * (real.pi : ℂ) * (↑x / ↑n) = ↑t,
-              {
-                rw htdef,
-                simp only [complex.of_real_mul, complex.of_real_bit0, 
-                complex.of_real_one, complex.of_real_div, complex.of_real_nat_cast,
-                mul_eq_mul_left_iff, mul_eq_zero, bit0_eq_zero, one_ne_zero, 
-                complex.of_real_eq_zero, false_or],
-                left,
-                rw [div_left_inj' h_lift_ne_zero, ← zmod.int_cast_cast,
-                 ← complex.of_real_int_cast, zmod.int_cast_cast],
-              },
-              repeat { rw ht, },
-              simp only [← complex.of_real_cos, ← complex.of_real_sin,
-              complex.cos_of_real_re, complex.cos_of_real_im,
-              complex.sin_of_real_re, complex.sin_of_real_im,
-              complex.of_real_re, complex.of_real_im],
-              rw [add_comm ↑(real.cos t) (-↑(real.sin t) * complex.I),
-              ← add_assoc, ← add_assoc, 
-              add_assoc ↑(real.cos t) (↑(real.sin t) * complex.I) 
-              (-↑(real.sin t) * complex.I), ← right_distrib, add_neg_self, zero_mul],
-              simp only [complex.of_real_zero, neg_zero', add_zero],
-            },
-            simp_rw h_x_sub_exp,
-            rw finset.prod_mul_distrib,
-            have h_prod_eq_prod : (finset.filter (λ (i : (zmod n)ˣ), 2 * ↑(i : zmod n) < (n : ℤ)) finset.univ).prod 
-            (λ (x : (zmod n)ˣ), polynomial.X - 
-            polynomial.C (complex.exp (2 * ↑real.pi * ((↑n - ↑x) / ↑n) * complex.I))) =
-            (finset.filter (λ (i : (zmod n)ˣ), 2 * ↑(i : zmod n) > (n : ℤ)) finset.univ).prod 
-            (λ (x : (zmod n)ˣ), polynomial.X - 
-            polynomial.C (complex.exp (2 * ↑real.pi * (↑x / ↑n) * complex.I))),
-            {
-              --  (i : Π (a : α), a ∈ s → γ)
-              apply finset.prod_bij' (λ i h, _),
-            },
-            rw h_prod_eq_prod,
-            rw ← finset.prod_union,
-            {
-              rw finset.filter_union_right,
-              simp_rw [← ne_iff_lt_or_gt],
-              have h_ne_iff_true : ∀ (i : (zmod n)ˣ), 
-              2 * ↑(i : zmod n) ≠ (n : ℤ) ↔ true,
-              {
-                intro i,
-                simp only [ne.def, iff_true],
-                intro h,
-                rw mul_comm at h,
-                have h_dvd : 2 ∣ (n : ℤ),
-                { 
-                  use ((i : zmod n) : ℤ),
-                  rw [← h, mul_comm], 
-                },
-                have h_gcd : ((i : zmod n).val * 2).gcd n = 2,
-                {
-                  rw nat.gcd_mul_of_coprime_of_dvd,
-                  { exact zmod.val_coe_unit_coprime i, },
-                  { 
-                    cases h_dvd with d h_dvd, 
-                    cases d,
-                    {
-                      use d,
-                      simp only [int.of_nat_eq_coe] at h_dvd,
-                      rw [← nat.cast_two, ← nat.cast_mul] at h_dvd,
-                      exact nat.cast_injective h_dvd,
-                    },
-                    {
-                      exfalso,
-                      have h_nonneg : 0 ≤ 2 * -[1+ d],
-                      {
-                        rw ← h_dvd,
-                        exact nat.cast_nonneg n,
-                      },
-                      have h_neg : 2 * -[1+ d] < 0,
-                      { exact int.mul_neg_of_pos_of_neg zero_lt_two (int.neg_succ_lt_zero d), },
-                      exact not_lt_of_le h_nonneg h_neg,
-                    }
-                  }
-                },
-                have h_ne_zero : ne_zero n,
-                { rw ne_zero_iff, exact nat_ne_zero_of_pos hposn, },
-                apply n_ne_two,
-                rw ← h_gcd,
-                sorry,
-                -- rw zmod.cast_eq_val at h,
-              },
-              simp_rw [h_ne_iff_true, finset.filter_true],
-            },
-            {
-              intros a h1 h2,
-              simp only [gt_iff_lt, finset.mem_filter, finset.mem_univ, true_and] at h1 h2,
-              have h_lt_self : (n : ℤ) < (n : ℤ),
-              { exact lt_trans h2 h1, }, 
-              simp only [lt_self_iff_false] at h_lt_self,
-              exact h_lt_self,
-            }
-          }
-        },
-        {
-          intros r1 r2 h,
-          dsimp at h,
-          simp only [complex.of_real_inj] at h,
-          exact h,
-        }
+        rw nat.add_one_le_iff,
+        exact nat.two_lt_of_ne (nat_ne_zero_of_pos hposn) n_ne_one n_ne_two,
+      },
+      have ha' :  1 < (a : ℝ),
+      {
+        rw [← int.cast_one, int.cast_lt],
+        exact ha,
       },
       have h_le_in_R : ↑(polynomial.eval (a : ℤ) (polynomial.cyclotomic n ℤ)) ≤ 
       ((a + 1) ^ (n.totient) : ℝ),
       {
-        sorry,
+        rw cyclotomic_eval_int_eq_eval_real,
+        apply le_of_lt,
+        exact polynomial.cyclotomic_eval_lt_sub_one_pow_totient hn ha',
       },
       rw [← int.cast_one, ← int.cast_add, ← int.cast_pow, int.cast_le] at h_le_in_R,
       exact h_le_in_R,
+    }
+  }
+end
+
+theorem X_sub_one_pow_le_cyclotomic {n : ℕ} {a : ℤ} (hposn : 0 < n) (ha : 1 < a) : 
+(a - 1) ^ (n.totient) ≤ polynomial.eval a (polynomial.cyclotomic n ℤ) :=
+begin
+  cases em (n = 1) with n_is_one n_ne_one,
+  {
+    unfreezingI { subst n_is_one, },
+    simp only [polynomial.cyclotomic_one, polynomial.eval_sub, polynomial.eval_X, 
+    polynomial.eval_one, nat.totient_one, pow_one, tsub_le_iff_right],
+    linarith,
+  },
+  {
+    cases em (n = 2) with n_is_two n_ne_two,
+    {
+      unfreezingI { subst n_is_two, },
+      simp only [polynomial.cyclotomic_two, polynomial.eval_add, polynomial.eval_X, 
+      polynomial.eval_one, nat.totient_two, pow_one],
+      linarith,
+    },
+    {
+      have hn : 2 ≤ n,
+      {
+        rw [nat.add_one_le_iff, nat.one_lt_iff_ne_zero_and_ne_one],
+        split,
+        exact nat_ne_zero_of_pos hposn,
+        exact n_ne_one,
+      },
+      have ha' :  1 < (a : ℝ),
+      {
+        rw [← int.cast_one, int.cast_lt],
+        exact ha,
+      },
+      have h_le_in_R : ((a - 1) ^ (n.totient) : ℝ) ≤ 
+      ↑(polynomial.eval (a : ℤ) (polynomial.cyclotomic n ℤ)),
+      {
+        rw cyclotomic_eval_int_eq_eval_real,
+        apply le_of_lt,
+        exact polynomial.sub_one_pow_totient_lt_cyclotomic_eval hn ha',
+      },
+      rw [← int.cast_one, ← int.cast_sub, ← int.cast_pow, int.cast_le] at h_le_in_R,
+      exact h_le_in_R,
+    }
+  }
+end
+
+lemma polynomial_mul_expand (n : ℕ) (p q : polynomial ℤ) :
+(polynomial.expand ℤ n) p * (polynomial.expand ℤ n) q = (polynomial.expand ℤ n) (p * q) := 
+begin
+  sorry,
+end
+
+theorem cyclotomic_expand_pow_eq_cyclotomic_mul
+{p t m : ℕ} [hprime : nat.prime p] 
+(hpost : 0 < t) (h_not_dvd : ¬p ∣ m) :
+(polynomial.expand ℤ (p ^ t)) (polynomial.cyclotomic m ℤ) =
+(polynomial.cyclotomic (p ^ t * m) ℤ) * 
+(polynomial.expand ℤ (p ^ (t - 1)) (polynomial.cyclotomic m ℤ)) :=
+begin
+  induction t with t ht,
+  {
+    exfalso,
+    exact nat.not_lt_zero 0 hpost,
+  },
+  {
+    cases em (t = 0) with h_t_eq_zero h_t_ne_zero,
+    {
+      subst h_t_eq_zero,
+      simp only [pow_one, pow_zero, polynomial.expand_one, mul_comm p m,
+      polynomial.cyclotomic_expand_eq_cyclotomic_mul hprime h_not_dvd],
+    },
+    {
+      have h_pow : p * p ^ (t - 1) = p ^ t,
+      {
+        rw [← ne.def, ← nat.one_le_iff_ne_zero] at h_t_ne_zero,
+        rw [← nat.sub_add_cancel h_t_ne_zero, pow_add, mul_comm],
+        simp only [nat.add_succ_sub_one, add_zero, pow_one],
+      },
+      simp only [nat.succ_eq_add_one, nat.succ_sub_succ_eq_sub, tsub_zero, pow_add, pow_one],
+      have h_expand : (polynomial.expand ℤ (p ^ t)) (polynomial.cyclotomic m ℤ) = 
+      (polynomial.expand ℤ p) ((polynomial.expand ℤ (p ^ (t - 1))) (polynomial.cyclotomic m ℤ)),
+      { rw [← polynomial.expand_mul, h_pow], },
+      rw [mul_comm, polynomial.expand_mul, mul_comm p _, mul_assoc, mul_comm p _,
+      ← mul_assoc, ← polynomial.cyclotomic_expand_eq_cyclotomic hprime, h_expand,
+      polynomial_mul_expand, polynomial.expand_inj (nat.prime.pos hprime), ← h_expand],
+      exact ht (nat.pos_of_ne_zero h_t_ne_zero),
+      {
+        use p ^ (t - 1) * m,
+        rw [← mul_assoc, h_pow],
+      }
     }
   }
 end
