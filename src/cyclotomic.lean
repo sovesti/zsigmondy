@@ -16,7 +16,7 @@ begin
   exact h1, 
 end
 
-lemma unit_of_coprime_of_val {n : ℕ} [ne_zero n] (a : (zmod n)ˣ) : 
+lemma unit_of_coprime_of_val [ne_zero n] (a : (zmod n)ˣ) : 
 zmod.unit_of_coprime (a : zmod n).val (zmod.val_coe_unit_coprime _) = a :=
 begin
   rw ← units.eq_iff,
@@ -40,9 +40,16 @@ begin
 end
 
 theorem cyclotomic_dvd_X_pow_sub_one_frac (R : Type u_1) [comm_ring R] [is_domain R] 
-{n k : ℕ} (hdvd : k ∣ n) (hposn : n ≠ 0) (hposk : k ≠ 0) (hne : k ≠ n) : 
+{k : ℕ} (hdvd : k ∣ n) (hposn : n ≠ 0) (hne : k ≠ n) : 
 polynomial.cyclotomic n R * (polynomial.X ^ k - 1) ∣ polynomial.X ^ n - 1 :=
 begin
+  cases em (k = 0) with h_k_zero hposk,
+  {
+    subst h_k_zero,
+    rw zero_dvd_iff at hdvd,
+    exfalso,
+    exact hposn hdvd,
+  },
   rw [← polynomial.prod_cyclotomic_eq_X_pow_sub_one (nat.pos_of_ne_zero hposk), 
   ← polynomial.prod_cyclotomic_eq_X_pow_sub_one (nat.pos_of_ne_zero hposn)],
   have h_subset : k.divisors ⊆ n.divisors,
@@ -182,8 +189,7 @@ begin
         symmetry,
         exact h_qm_eq_n,
       },
-      exact cyclotomic_dvd_X_pow_sub_one_frac _ hdvd_mn (nat_ne_zero_of_pos hpos) 
-      (nat_ne_zero_of_pos h_m_pos) h_ne_mn,
+      exact cyclotomic_dvd_X_pow_sub_one_frac _ hdvd_mn (nat_ne_zero_of_pos hpos) h_ne_mn,
     },
     cases h_dvd_cyclotomic with P h_dvd_polynoms,
     rw h_dvd_polynoms,
@@ -193,7 +199,7 @@ begin
   } 
 end
 
-lemma cyclotomic_eval_int_eq_eval_real {n : ℕ} {a : ℤ} :
+lemma cyclotomic_eval_int_eq_eval_real {a : ℤ} :
 ↑(polynomial.eval (a : ℤ) (polynomial.cyclotomic n ℤ)) = 
         polynomial.eval (a : ℝ) (polynomial.cyclotomic n ℝ) :=
 begin
@@ -201,7 +207,7 @@ begin
           int.cast_id, eq_int_cast],
 end
 
-theorem cyclotomic_le_X_add_one_pow {n : ℕ} {a : ℤ} (hposn : 0 < n) (ha : 1 < a) : 
+theorem cyclotomic_le_X_add_one_pow {a : ℤ} (hposn : 0 < n) (ha : 1 < a) : 
 polynomial.eval a (polynomial.cyclotomic n ℤ) ≤ (a + 1) ^ (n.totient) :=
 begin
   cases em (n = 1) with n_is_one n_ne_one,
@@ -242,7 +248,7 @@ begin
   }
 end
 
-theorem X_sub_one_pow_le_cyclotomic {n : ℕ} {a : ℤ} (hposn : 0 < n) (ha : 1 < a) : 
+theorem X_sub_one_pow_le_cyclotomic {a : ℤ} (hposn : 0 < n) (ha : 1 < a) : 
 (a - 1) ^ (n.totient) ≤ polynomial.eval a (polynomial.cyclotomic n ℤ) :=
 begin
   cases em (n = 1) with n_is_one n_ne_one,
@@ -286,12 +292,6 @@ begin
   }
 end
 
-lemma polynomial_mul_expand (n : ℕ) (p q : polynomial ℤ) :
-(polynomial.expand ℤ n) p * (polynomial.expand ℤ n) q = (polynomial.expand ℤ n) (p * q) := 
-begin
-  sorry,
-end
-
 theorem cyclotomic_expand_pow_eq_cyclotomic_mul
 {p t m : ℕ} [hprime : nat.prime p] 
 (hpost : 0 < t) (h_not_dvd : ¬p ∣ m) :
@@ -324,7 +324,7 @@ begin
       { rw [← polynomial.expand_mul, h_pow], },
       rw [mul_comm, polynomial.expand_mul, mul_comm p _, mul_assoc, mul_comm p _,
       ← mul_assoc, ← polynomial.cyclotomic_expand_eq_cyclotomic hprime, h_expand,
-      polynomial_mul_expand, polynomial.expand_inj (nat.prime.pos hprime), ← h_expand],
+      ← alg_hom.map_mul, polynomial.expand_inj (nat.prime.pos hprime), ← h_expand],
       exact ht (nat.pos_of_ne_zero h_t_ne_zero),
       {
         use p ^ (t - 1) * m,
@@ -332,4 +332,135 @@ begin
       }
     }
   }
+end
+
+theorem order_of_eq_iff_is_root_of_cyclotomic {a p : ℕ} (h_prime : fact p.prime)
+(h_ndvd : ¬ p ∣ n) (h_pos : 0 < n) (h_a : 1 ≠ a) :
+↑p ∣ (polynomial.cyclotomic n ℤ).eval ↑a → ∃ (h_coprime : a.coprime p),
+order_of(zmod.unit_of_coprime a h_coprime) = n :=
+begin 
+  intro hdvd,
+  have h_coprime: a.coprime p,
+  {
+    rw ← zmod.int_coe_zmod_eq_zero_iff_dvd at hdvd,
+    apply polynomial.coprime_of_root_cyclotomic h_pos,
+    rw [polynomial.is_root.def, ← polynomial.map_cyclotomic_int, eq_nat_cast,
+    polynomial.eval_nat_cast_map, eq_int_cast],
+    exact hdvd,
+  },
+  use h_coprime,
+  have h_one_le : ∀ (k : ℕ), 1 ≤ a ^ k,
+  { 
+    intro k,
+    apply nat.one_le_pow,
+    apply nat.pos_of_ne_zero,
+    intro h,
+    subst h,
+    rw nat.coprime_zero_left at h_coprime,
+    exact nat.prime.ne_one h_prime.out h_coprime,
+  },
+  have h_one_ne : ∀ (k : ℕ) (h_ne_zero : k ≠ 0), 1 ≠ a ^ k,
+  {
+    intros k h_ne_zero h,
+    apply h_a,
+    cases k,
+    { exfalso, apply h_ne_zero, refl, },
+    rw [nat.succ_eq_add_one, pow_add] at h,
+    symmetry' at h,
+    rw [nat.mul_eq_one_iff, pow_one] at h,
+    symmetry,
+    exact h.2,
+  },
+  have h_one_ne' : ∀ (k : ℕ) (h_ne_zero : k ≠ 0), a ^ k - 1 ≠ 0,
+  {
+    intros k h_ne_zero h,
+    rw [nat.sub_eq_zero_iff_le] at h,
+    apply h_one_ne k h_ne_zero,
+    exact le_antisymm (h_one_le k) h,
+  },
+  have h_one_ne_int : ∀ (k : ℕ) (h_ne_zero : k ≠ 0), (a : ℤ)^k - 1 ≠ 0,
+  {
+    intros k h_ne_zero h,
+    apply h_one_ne' k h_ne_zero,
+    rw [← int.coe_nat_eq_coe_nat_iff, int.coe_nat_zero,
+     int.coe_nat_sub (h_one_le k), int.coe_nat_pow, int.coe_nat_one],
+    exact h,
+  },
+  have hdvd' : ∀ (d : ℕ) (h_dvdn : d ∣ n) (hd : d ≠ n), p * (a ^ d - 1) ∣ (a ^ n - 1),
+  {
+    intros d h_dvdn hd,
+    suffices h_dvd_eval : ↑p * polynomial.eval (a : ℤ) (polynomial.X ^ d - 1) 
+    ∣ polynomial.eval (a : ℤ) (polynomial.X ^ n - 1),
+    {
+      simp only [eq_int_cast, int.cast_one, polynomial.eval_sub, 
+      polynomial.eval_pow, polynomial.eval_X, polynomial.eval_one] at h_dvd_eval,
+      rw [← int.coe_nat_dvd, nat.cast_mul],
+      rw [int.coe_nat_sub (h_one_le d), int.coe_nat_sub (h_one_le n),
+      int.coe_nat_pow, nat.cast_one, int.coe_nat_pow],
+      exact h_dvd_eval,
+    },
+    {
+      transitivity polynomial.eval ↑a (polynomial.cyclotomic n ℤ) * 
+      (polynomial.eval ↑a (polynomial.X ^ d - 1)),
+      { exact mul_dvd_mul_right hdvd _, },
+      {
+        rw ← polynomial.eval_mul, 
+        apply polynomial.eval_dvd,
+        exact cyclotomic_dvd_X_pow_sub_one_frac ℤ h_dvdn (nat_ne_zero_of_pos h_pos) hd,
+      }
+    }
+  },
+  have h_order_dvd_n : order_of (zmod.unit_of_coprime a h_coprime) ∣ n,
+  {
+    apply order_of_dvd_of_pow_eq_one,
+    rw [← units.eq_iff, ← sub_eq_zero, units.coe_pow,
+    zmod.coe_unit_of_coprime, units.coe_one, ← nat.cast_one, ← nat.cast_pow,
+    ← nat.cast_sub (h_one_le n), ← int.cast_coe_nat, zmod.int_coe_zmod_eq_zero_iff_dvd,
+    int.coe_nat_dvd],
+    cases em (1 = n),
+    {
+      symmetry' at h,
+      subst h,
+      simp only [polynomial.cyclotomic_one, polynomial.eval_sub, 
+      polynomial.eval_X, polynomial.eval_one] at hdvd,
+      rw [← int.coe_nat_dvd, nat.cast_sub (h_one_le 1), pow_one, nat.cast_one],
+      exact hdvd,
+    },
+    exact dvd_of_mul_right_dvd (hdvd' 1 (one_dvd n) h),
+  },
+  by_contra,
+  let ord := order_of (zmod.unit_of_coprime a h_coprime),
+  have ord_def : order_of (zmod.unit_of_coprime a h_coprime) = ord := by refl,
+  have h_ord_pos : ord ≠ 0,
+  {
+    intro h_zero,
+    rw [← ord_def, order_of_eq_zero_iff] at h_zero,
+    apply h_zero,
+    rw is_of_fin_order_iff_pow_eq_one,
+    use fintype.card((zmod p)ˣ),
+    split,
+    { exact fintype.card_pos, },
+    { rw pow_card_eq_one, }
+  },
+  have hdvd'' : p * (a ^ ord - 1) ∣ a ^ n - 1,
+  { exact hdvd' ord h_order_dvd_n h, },
+  rw ord_def at h_order_dvd_n,
+  cases h_order_dvd_n with t h_mul,
+  subst h_mul,
+  rw [← int.coe_nat_dvd, nat.cast_mul, 
+  nat.cast_sub (h_one_le ord), nat.cast_sub (h_one_le (ord * t))] at hdvd'',
+  simp only [int.coe_nat_pow, nat.cast_one] at hdvd'',
+  rw [pow_mul, ← geom_sum_mul (↑a ^ ord) t] at hdvd'',
+  have hdvd''' : (p : ℤ) ∣ (finset.range t).sum (λ (i : ℕ), (↑a ^ ord) ^ i),
+  {
+    exact int.dvd_of_mul_dvd_mul_right (h_one_ne_int ord h_ord_pos) hdvd'',
+  },
+  simp only [← zmod.int_coe_zmod_eq_zero_iff_dvd, 
+  int.cast_sum, int.cast_pow, int.cast_coe_nat, ← ord_def,
+  ← zmod.coe_unit_of_coprime a h_coprime, ← units.coe_pow,
+  pow_order_of_eq_one, units.coe_one, one_pow, finset.sum_const, 
+  finset.card_range, nat.smul_one_eq_coe] at hdvd''',
+  rw zmod.nat_coe_zmod_eq_zero_iff_dvd at hdvd''',
+  rw mul_comm at h_ndvd,
+  exact h_ndvd (dvd_mul_of_dvd_left hdvd''' ord),
 end
