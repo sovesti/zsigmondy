@@ -248,14 +248,12 @@ begin
   }
 end
 
-theorem X_sub_one_pow_le_cyclotomic {a : ℤ} (hposn : 0 < n) (ha : 1 < a) : 
-(a - 1) ^ (n.totient) ≤ polynomial.eval a (polynomial.cyclotomic n ℤ) :=
+theorem X_sub_one_pow_le_cyclotomic {a : ℤ} (hposn : 1 < n) (ha : 1 < a) : 
+(a - 1) ^ (n.totient) < polynomial.eval a (polynomial.cyclotomic n ℤ) :=
 begin
   cases em (n = 1) with n_is_one n_ne_one,
   {
     unfreezingI { subst n_is_one, },
-    simp only [polynomial.cyclotomic_one, polynomial.eval_sub, polynomial.eval_X, 
-    polynomial.eval_one, nat.totient_one, pow_one, tsub_le_iff_right],
     linarith,
   },
   {
@@ -271,7 +269,11 @@ begin
       {
         rw [nat.add_one_le_iff, nat.one_lt_iff_ne_zero_and_ne_one],
         split,
-        exact nat_ne_zero_of_pos hposn,
+        {
+          intro h,
+          subst h,
+          linarith,
+        },
         exact n_ne_one,
       },
       have ha' :  1 < (a : ℝ),
@@ -279,14 +281,13 @@ begin
         rw [← int.cast_one, int.cast_lt],
         exact ha,
       },
-      have h_le_in_R : ((a - 1) ^ (n.totient) : ℝ) ≤ 
+      have h_le_in_R : ((a - 1) ^ (n.totient) : ℝ) < 
       ↑(polynomial.eval (a : ℤ) (polynomial.cyclotomic n ℤ)),
       {
         rw cyclotomic_eval_int_eq_eval_real,
-        apply le_of_lt,
         exact polynomial.sub_one_pow_totient_lt_cyclotomic_eval hn ha',
       },
-      rw [← int.cast_one, ← int.cast_sub, ← int.cast_pow, int.cast_le] at h_le_in_R,
+      rw [← int.cast_one, ← int.cast_sub, ← int.cast_pow, int.cast_lt] at h_le_in_R,
       exact h_le_in_R,
     }
   }
