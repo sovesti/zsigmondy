@@ -81,7 +81,7 @@ begin
 end
 
 theorem prime_dvd_cyclotomic (hpos : 0 < n) 
-{p : ℕ} [hprime : fact (nat.prime p)] {a : (zmod p)ˣ}
+{p : ℕ} (hprime : fact (nat.prime p)) {a : (zmod p)ˣ}
 (hroot : (polynomial.cyclotomic n (zmod p)).is_root a) : 
 ∃ (t : ℕ), n = order_of a * p ^ t :=
 begin

@@ -1,8 +1,8 @@
 [package]
 name = "zsigmondy"
 version = "0.1"
-lean_version = "leanprover-community/lean:3.48.0"
+lean_version = "leanprover-community/lean:3.49.1"
 path = "src"
 
 [dependencies]
-mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "8c9342fd8949ec8421ed6649685d5233a19e0c08"}
+mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "9407a3635affe897d74be8938f8cd7e3df967b5f"}
