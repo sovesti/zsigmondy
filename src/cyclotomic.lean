@@ -4,7 +4,7 @@ import algebra
 import data.finset
 import tactic
 
-variables {R : Ring} {n : ℕ} {a : R}
+variables {n : ℕ}
 
 noncomputable theory
 
@@ -23,7 +23,7 @@ begin
   simp,
 end
 
-lemma polynomial_dvd_of_mul_dvd_mul {R : Type u_1} [field R] {p q r : polynomial R} 
+lemma polynomial_dvd_of_mul_dvd_mul {R : Type} [field R] {p q r : polynomial R} 
 (hr : r ≠ 0) : p * r ∣ q * r → p ∣ q :=
 begin
   intro hdvd,
@@ -39,7 +39,7 @@ begin
   }
 end
 
-theorem cyclotomic_dvd_X_pow_sub_one_frac (R : Type u_1) [comm_ring R] [is_domain R] 
+theorem cyclotomic_dvd_X_pow_sub_one_frac (R : Type) [comm_ring R] [is_domain R] 
 {k : ℕ} (hdvd : k ∣ n) (hposn : n ≠ 0) (hne : k ≠ n) : 
 polynomial.cyclotomic n R * (polynomial.X ^ k - 1) ∣ polynomial.X ^ n - 1 :=
 begin
@@ -141,10 +141,16 @@ begin
         use t * i,
         subst hdvd_h,
         subst hdvd_t,
-        rw [mul_comm, mul_assoc, nat.mul_right_inj] at h_qm_eq_n,
-        rw ← h_qm_eq_n,
-        linarith,
-        { exact nat.pos_of_ne_zero (nat.prime.ne_zero h_q_prime), }
+        rw [mul_comm, mul_assoc, mul_eq_mul_left_iff] at h_qm_eq_n,
+        cases h_qm_eq_n,
+        {
+          rw [← h_qm_eq_n, ← mul_assoc],
+          nth_rewrite 3  mul_comm,
+        },
+        {
+          exfalso,
+          exact nat.prime.ne_zero h_q_prime h_qm_eq_n,
+        }
       },
 
       repeat { simp_rw ← units.coe_pow _ _ at h_root_of_sum, },
@@ -248,7 +254,7 @@ begin
   }
 end
 
-theorem X_sub_one_pow_le_cyclotomic {a : ℤ} (hposn : 1 < n) (ha : 1 < a) : 
+theorem X_sub_one_pow_lt_cyclotomic {a : ℤ} (hposn : 1 < n) (ha : 1 < a) : 
 (a - 1) ^ (n.totient) < polynomial.eval a (polynomial.cyclotomic n ℤ) :=
 begin
   cases em (n = 1) with n_is_one n_ne_one,
@@ -294,7 +300,7 @@ begin
 end
 
 theorem cyclotomic_expand_pow_eq_cyclotomic_mul
-{p t m : ℕ} [hprime : nat.prime p] 
+{p t m : ℕ} (hprime : nat.prime p) 
 (hpost : 0 < t) (h_not_dvd : ¬p ∣ m) :
 (polynomial.expand ℤ (p ^ t)) (polynomial.cyclotomic m ℤ) =
 (polynomial.cyclotomic (p ^ t * m) ℤ) * 
