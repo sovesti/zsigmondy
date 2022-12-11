@@ -15,10 +15,10 @@ begin
   exact order_of_le_card_univ,
 end
 
-lemma order_of_units_pos (h_coprime : a.coprime n) : 
+lemma order_of_units_pos [ne_zero n] (h_coprime : a.coprime n) : 
 0 < order_of (zmod.unit_of_coprime a h_coprime) :=
 begin
-  sorry,
+  apply order_of_pos,
 end
 
 lemma nat_dvd_mul_pow_of_one_le (a b c : ℕ) : 1 ≤ c → a ∣ b * a ^ c :=
@@ -30,45 +30,160 @@ begin
   rw [← nat.sub_add_cancel h_le, pow_add, pow_one, nat.sub_add_cancel h_le],
 end
 
-lemma mul_pow_dvd_eq_mul_pow_sub (a b c : ℕ) : 1 ≤ c 
+lemma mul_pow_dvd_eq_mul_pow_sub (a b c : ℕ) (h_pos : 0 < b) : 1 ≤ c 
 → a * b ^ c / b = a * b ^ (c - 1) := 
 begin
   intro hc,
-  sorry,
+  have h_pow_sub_add : b ^ (c - 1) * b = b ^ c,
+  {
+    nth_rewrite 1 ← pow_one b,
+    rw [ ← pow_add, nat.sub_add_cancel hc],
+  },
+  have h_dvd : b ∣ b ^ c,
+  {
+    use b ^ (c - 1),
+    rw [← h_pow_sub_add, mul_comm],
+  },
+  rw [nat.mul_div_assoc a h_dvd, mul_eq_mul_left_iff],
+  left,
+  rw [← h_pow_sub_add, nat.mul_div_cancel],
+  exact h_pos,
 end
 
-lemma dvd_pow_order_mul_sub_one (a b c : ℕ) (h_coprime : a.coprime b) :
+lemma dvd_pow_order_mul_sub_one (a b c : ℕ) (h_coprime : a.coprime b) (ha : 1 ≤ a) :
 b ∣ a ^ (order_of (zmod.unit_of_coprime a h_coprime) * c) - 1 :=
 begin
-  sorry,
+  have h_a_pos : 0 < a := by linarith,
+  have h_order_dvd : order_of (zmod.unit_of_coprime a h_coprime) ∣ 
+  order_of (zmod.unit_of_coprime a h_coprime) * c := by { use c, },
+  rw [order_of_dvd_iff_pow_eq_one, ← units.eq_iff, ← sub_eq_zero, units.coe_pow,
+  zmod.coe_unit_of_coprime, units.coe_one, ← nat.cast_one, ← nat.cast_pow,
+  ← nat.cast_sub 
+  (nat.one_le_pow (order_of (zmod.unit_of_coprime a h_coprime) * c) a h_a_pos), 
+  ← int.cast_coe_nat, zmod.int_coe_zmod_eq_zero_iff_dvd,
+  int.coe_nat_dvd] at h_order_dvd,
+  exact h_order_dvd,
 end
 
 lemma four_dvd_pow_sub_one_of_two_dvd (h_coprime : a.coprime 2) :
 2 ∣ n → 4 ∣ a ^ n - 1 :=
 begin
-  sorry,
-end
-
-lemma nat_le_sub_one_of_lt (a b : ℕ) : a < b → a ≤ b - 1 :=
-begin
-  intro h_lt,
-  sorry,
+  intro h_dvd,
+  cases h_dvd with k hk,
+  subst hk,
+  cases em (k = 0) with h_k_eq_zero h_k_ne_zero,
+  {
+    subst h_k_eq_zero,
+    simp only [mul_zero, pow_zero, dvd_zero],
+  },
+  {
+    rw [mul_comm, pow_mul],
+    set b := a ^ k with hb,
+    have h_odd : odd b,
+    {
+      rw [hb, nat.odd_iff_not_even, nat.even_pow' h_k_ne_zero],
+      intro h_even,
+      cases h_even with a' ha',
+      rw ← two_mul at ha',
+      rw ha' at h_coprime,
+      apply nat.not_coprime_of_dvd_of_dvd one_lt_two _ _ h_coprime,
+      { use a', },
+      { refl, }
+    },
+    cases h_odd with b' hb',
+    use ((b - 1) / 2) * ((b + 1) / 2),
+    rw [hb', add_assoc, one_add_one_eq_two],
+    nth_rewrite 6 ← mul_one 2,
+    simp only [nat.add_succ_sub_one, add_zero, nat.mul_div_right, 
+    zero_lt_bit0, nat.lt_one_iff, ← mul_add],
+    ring_nf,
+  }
 end
 
 lemma nat_multiplicity_self (a : ℕ) : 2 ≤ a → multiplicity a a = 1 :=
 begin
   intro ha,
-  sorry,
+  apply multiplicity.multiplicity_self,
+  {
+    rw nat.is_unit_iff,
+    linarith,
+  },
+  { linarith, }
 end
 
-lemma sub_one_mul_lt_pow_sub_one (a b : ℕ) : 1 < a → (a - 1) * b < a ^ b - 1 :=
+lemma sub_one_mul_lt_pow_sub_one (a b : ℕ) (hb : 1 < b) : 
+1 < a → (a - 1) * b < a ^ b - 1 :=
 begin
-  sorry,
+  intro ha,
+  have hpos : 0 < a := by linarith,
+  rw ← int.coe_nat_lt,
+  simp only [algebra_map.coe_one, coe_pow, int.coe_nat_mul, 
+  int.coe_nat_sub (le_of_lt ha), int.coe_nat_sub (nat.one_le_pow b a hpos)],
+  rw [← int.coe_nat_lt, int.coe_nat_one] at ha,
+  rw ← mul_geom_sum,
+  apply int.mul_lt_mul_of_pos_left,
+  {
+    have h_b_eq_sum : (b : ℤ) = (finset.range b).sum (λ (i : ℕ), 1) := by {
+      simp only [finset.sum_const, finset.card_range, nat.smul_one_eq_coe],
+    },
+    rw h_b_eq_sum,
+    apply finset.sum_lt_sum,
+    {
+      intros i hi,
+      rw [← int.coe_nat_pow, ← nat.cast_one, int.coe_nat_le],
+      exact nat.one_le_pow i a hpos,
+    },
+    {
+      use 1,
+      rw [finset.mem_range, pow_one],
+      split,
+      { exact hb, },
+      { exact ha }
+    }
+  },
+  { linarith, }
 end
 
 lemma nat_pow_le_one_iff (a b : ℕ) : a ^ b ≤ 1 ↔ a ≤ 1 ∨ b = 0 :=
 begin
-  sorry,
+  split,
+  {
+    intro h_le_one,
+    cases em (b = 0) with hb hb,
+    {
+      right,
+      exact hb,
+    },
+    {
+      left,
+      have h_one_le_b : 1 ≤ b,
+      {
+        cases b,
+        {
+          exfalso,
+          apply hb,
+          refl,
+        },
+        {
+          rw nat.succ_eq_add_one,
+          linarith,
+        }
+      },
+      rw [← one_pow b, nat.pow_le_iff_le_left h_one_le_b] at h_le_one,
+      exact h_le_one,
+    }
+  },
+  {
+    intro h_or,
+    cases h_or,
+    {
+      rw ← one_pow b,
+      apply nat.pow_le_pow_of_le_left h_or,
+    },
+    {
+      rw [h_or, pow_zero],
+    }
+  }
 end
 
 lemma order_of_two_mod_three_eq_two (h_coprime : (2 : ℕ).coprime 3) : 
@@ -81,6 +196,45 @@ lemma order_of_eq_one_in_units_two (h_coprime : a.coprime 2) :
 order_of (zmod.unit_of_coprime a h_coprime) = 1 :=
 begin
   simp only [order_of_eq_one_iff, eq_iff_true_of_subsingleton],
+end
+
+lemma three_mul_le_pow_sub (x : ℕ) : (2 + 1) * ((x + 5) : ℤ) ≤ 2 ^ (x + 5) - 1 := 
+begin
+  induction x with x hi,
+  {
+    norm_num,
+  },
+  {
+    transitivity (2 ^ (x + 5) - 1 + ((2 : ℤ) + 1)),
+    {
+      rw [nat.cast_succ, add_assoc],
+      nth_rewrite 2 add_comm,
+      rw [← add_assoc, mul_add, mul_one],
+      exact int.add_le_add_right hi _,
+    },
+    {
+      rw [sub_add_add_cancel, nat.succ_eq_add_one],
+      nth_rewrite 3 add_comm,
+      rw [add_assoc],
+      repeat { rw pow_add, },
+      set two_pow := (2 : ℤ) ^ x with h_pow,
+      have h_pow_nonneg: 1 ≤ two_pow,
+      {
+        rw [h_pow, ← nat.cast_one, ← nat.cast_bit0, ← nat.cast_pow,
+        nat.cast_le],
+        apply nat.one_le_pow,
+        linarith,
+      },
+      norm_num,
+      linarith,
+    }
+  }
+end
+
+lemma two_mul_le_pow_sub_one (x : ℤ) (a : ℕ) (hx : 2 < x) (ha : 2 ≤ a) : 
+2 * (x - 1) * (a : ℤ) ≤ x ^ a - 1 :=
+begin
+  sorry,
 end
 
 lemma le_of_order_mul_pow_eq_order_mul_pow (p q t₁ t₂ : ℕ) 
@@ -112,13 +266,13 @@ begin
       exact nat.prime.dvd_of_dvd_pow h_p_prime h_dvd,
     },
     {
+      haveI : ne_zero q := ⟨ nat.prime.ne_zero h_q_prime, ⟩, 
       transitivity order_of (zmod.unit_of_coprime a h_q_coprime),
       { exact nat.le_of_dvd (order_of_units_pos h_q_coprime) h_dvd, },
       {
         transitivity q - 1,
         {
           rw ← nat.totient_prime h_q_prime,
-          haveI : ne_zero q := ⟨ nat.prime.ne_zero h_q_prime ⟩,
           exact order_of_units_le_totient h_q_coprime,
         },
         {
@@ -284,6 +438,7 @@ begin
       simp only [not_le, nat.lt_one_iff] at h,
       subst h,
       simp only [pow_zero, mul_one] at ht,
+      haveI : ne_zero p' := ⟨ nat.prime.ne_zero (nat.prime_of_mem_factors h_in_factors) ⟩,
       have h_order_lt_p' : order_of (zmod.unit_of_coprime a 
       (h_coprime p' (nat.dvd_of_mem_factors h_in_factors))) < p',
       {
@@ -293,7 +448,6 @@ begin
         order_of (zmod.unit_of_coprime a (h_coprime p' 
         (nat.dvd_of_mem_factors h_in_factors))) ≤ p' - 1 := by {
           rw ← nat.totient_prime (nat.prime_of_mem_factors h_in_factors),
-          haveI : ne_zero p' := ⟨ nat.prime.ne_zero (nat.prime_of_mem_factors h_in_factors) ⟩, 
           exact order_of_units_le_totient (h_coprime p' 
           (nat.dvd_of_mem_factors h_in_factors)),
         },
@@ -389,8 +543,8 @@ begin
     {
       split,
       {
-        rw [ht.left, mul_pow_dvd_eq_mul_pow_sub _ p t ht.right],
-        exact dvd_pow_order_mul_sub_one _ _ _ _,
+        rw [ht.left, mul_pow_dvd_eq_mul_pow_sub _ p t (nat.prime.pos h_p_prime) ht.right],
+        exact dvd_pow_order_mul_sub_one _ _ _ _ (le_of_lt ha),
       },
       {
         intro h_p_eq_two,
@@ -418,7 +572,6 @@ begin
             {
               use 2 ^ (t - 2),
               rw [h_n_eq, one_mul],
-              -- nth_rewrite 1 [← pow_one 2],
               transitivity 2 ^ (t - 1),
               {
                 rw ← nat.pow_div ht zero_lt_two,
@@ -426,7 +579,7 @@ begin
               },
               {
                 rw [← nat.sub_add_cancel 
-                (nat_le_sub_one_of_lt 1 t (nat.lt_of_le_and_ne ht h_t_ne_one)),
+                (nat.le_pred_of_lt (nat.lt_of_le_and_ne ht h_t_ne_one)),
                 nat.sub_sub, one_add_one_eq_two, pow_add, pow_one, mul_comm],
               }
             },
@@ -495,7 +648,6 @@ begin
       rw [multiplicity.pow_dvd_iff_le_multiplicity,
       ← multiplicity.int.coe_nat_multiplicity, nat.cast_two,
       nat.cast_two] at h_square_dvd,
-      -- apply not_lt_of_le (le_of_add_le_add_left h_multiplicities'),
       sorry,
       {
         rw nat.cast_two at h_p_not_dvd_a_pow,
@@ -576,6 +728,8 @@ begin
         exact nat.sub_one_sub_lt (nat.prime.pos h_p_prime),
       },
       exact lt_of_le_of_lt h_ord_le_p_sub_one h_p_sub_one_lt_p,
+      rw ne_zero_iff,
+      exact nat.prime.ne_zero h_p_prime,
     },
     have h_expand_eq_expand_mul_p : 
     polynomial.eval ↑a ((polynomial.expand ℤ (p ^ t)) 
@@ -602,11 +756,13 @@ begin
       ← int.coe_nat_sub (h_one_le (p ^ (t - 1))),
       ← int.coe_nat_sub (h_one_le (p ^ (t - 1 + 1))), pow_add,
       pow_mul, pow_one, ← int.coe_nat_mul, int.coe_nat_lt],
-      apply sub_one_mul_lt_pow_sub_one (a ^ p ^ (t - 1)) p,
+      apply sub_one_mul_lt_pow_sub_one 
+      (a ^ p ^ (t - 1)) p (nat.prime.one_lt h_p_prime),
       apply h_one_lt (p ^ (t - 1)),
       exact pow_pos (nat.prime.pos h_p_prime) (t - 1),
     },
     {
+      haveI : ne_zero p := ⟨ nat.prime.ne_zero h_p_prime ⟩, 
       have h_ord_pos : 0 < ord := by { rw h_ord_def, 
       exact order_of_units_pos h_a_coprime_p, },
       have h_one_lt_ord : 1 < ord,
@@ -622,7 +778,124 @@ begin
         nth_rewrite 1 ← nat.sub_add_cancel ht.right,
         set b := (a : ℤ) ^ p ^ (t - 1) with h_b_def,
         rw [pow_add, pow_mul, pow_one, ← h_b_def],
-        sorry,
+        have h_b_nonneg : 0 ≤ b,
+        {
+          rw h_b_def,
+          apply pow_nonneg,
+          linarith,
+        },
+        transitivity ((b + 1) * ↑p) ^ ord.totient,
+        {
+          rw mul_pow,
+          apply int.mul_le_mul_of_nonneg_left,
+          {
+            apply le_self_pow _ (nat_ne_zero_of_pos (nat.totient_pos h_ord_pos)),
+            rw [← nat.cast_one, int.coe_nat_le],
+            exact le_of_lt (nat.prime.one_lt h_p_prime),
+          },
+          {
+            apply pow_nonneg,
+            apply add_nonneg h_b_nonneg,
+            linarith,
+          }
+        },
+        {
+          apply pow_le_pow_of_le_left,
+          {
+            apply mul_nonneg,
+            {
+              apply add_nonneg h_b_nonneg,
+              linarith,
+            },
+            {
+              linarith,
+            }
+          },
+          {
+            cases em (b ≤ 2) with h_b_le_two h_two_lt_b,
+            {
+              have h_pow_le_two : 2 ^ (p ^ (t - 1)) ≤ (2 : ℤ),
+              {
+                transitivity (↑a ^ p ^ (t - 1)),
+                {
+                  apply pow_le_pow_of_le_left,
+                  { linarith, },
+                  {
+                    rw [← nat.cast_two, int.coe_nat_le],
+                    linarith,
+                  }
+                },
+                {
+                  rw ← h_b_def,
+                  exact h_b_le_two,
+                }
+              },
+              nth_rewrite 1 ← pow_one (2 : ℤ) at h_pow_le_two,
+              rw [pow_le_pow_iff _] at h_pow_le_two,
+              {
+                cases em (t - 1 = 0) with h_t_le_one h_t_ne_one,
+                {
+                  rw nat.sub_eq_zero_iff_le at h_t_le_one,
+                  have h_t_eq_one : t = 1 := by exact le_antisymm h_t_le_one ht.right,
+                  subst h_t_eq_one,
+                  simp only [pow_zero, pow_one] at h_b_def,
+                  rw [h_b_def, ← nat.cast_two, int.coe_nat_le] at h_b_le_two,
+                  have h_a_eq_two : a = 2 := by linarith,
+                  subst h_a_eq_two,
+                  have h_p_ne_two : p ≠ 2,
+                  {
+                    intro h_p_eq_two,
+                    rw [h_p_eq_two, nat.coprime_self] at h_a_coprime_p,
+                    linarith,
+                  },
+                  cases em (p = 3) with h_p_eq_three h_p_ne_three,
+                  {
+                    subst h_p_eq_three,
+                    exfalso,
+                    apply h_exception_2,
+                    rw [eq_self_iff_true, and_true, ht.left, pow_one, 
+                    h_ord_def, order_of_two_mod_three_eq_two h_a_coprime_p],
+                    ring,
+                  },
+                  {
+                    rw [h_b_def, coe_bit0, algebra_map.coe_one],
+                    have h_five_le_p : 5 ≤ p := by exact 
+                    nat.prime.five_le_of_ne_two_of_ne_three h_p_prime h_p_ne_two h_p_ne_three,
+                    convert three_mul_le_pow_sub (p - 5),
+                    norm_num,
+                    symmetry, 
+                    exact nat.sub_add_cancel h_five_le_p,
+                    symmetry, 
+                    exact nat.sub_add_cancel h_five_le_p,
+                  }
+                },
+                {
+                  exfalso,
+                  rw nat_pow_le_one_iff at h_pow_le_two,
+                  cases h_pow_le_two,
+                  { exact not_lt_of_le h_pow_le_two (nat.prime.one_lt h_p_prime), },
+                  { exact h_t_ne_one h_pow_le_two, }
+                }
+              },
+              {
+                linarith,
+              }
+            },
+            {
+              transitivity 2 * (b - 1) * ↑p,
+              {
+                apply int.mul_le_mul_of_nonneg_right,
+                { linarith, },
+                { linarith, }
+              },
+              {
+                apply two_mul_le_pow_sub_one b p,
+                { linarith, },
+                { exact nat.prime.two_le h_p_prime, }
+              }
+            }
+          }
+        }
       },
       exact lt_of_le_of_lt 
       (le_trans (int.mul_le_mul_of_nonneg_right (cyclotomic_le_X_add_one_pow h_ord_pos 
@@ -630,132 +903,6 @@ begin
       (pow_pos (nat.prime.pos h_p_prime) (t - 1)))) (int.coe_nat_nonneg p)) h_le)
       (X_sub_one_pow_lt_cyclotomic h_one_lt_ord 
       (h_one_lt_int (p ^ t) (pow_pos (nat.prime.pos h_p_prime) t))),
-    }
-  }
-end
-
-lemma h_le (a p t ord n : ℕ) (ht: n = p ^ t * ord ∧ 1 ≤ t)
-(h_one_lt_ord : 1 < ord) (h_ord_pos : 0 < ord) (ha: 1 < a) (h_p_prime : nat.prime p)
-(h_exception_2 : ¬(n = 6 ∧ a = 2)) (h_a_coprime_p: a.coprime p)
-(h_ord_def: ord = order_of (zmod.unit_of_coprime a h_a_coprime_p))
-: ((a : ℤ) ^ p ^ (t - 1) + 1) ^ ord.totient * ↑p ≤ 
-((a : ℤ) ^ p ^ t - 1) ^ ord.totient := 
-begin
-  nth_rewrite 1 ← nat.sub_add_cancel ht.right,
-  set b := (a : ℤ) ^ p ^ (t - 1) with h_b_def,
-  rw [pow_add, pow_mul, pow_one, ← h_b_def],
-  have h_b_nonneg : 0 ≤ b,
-  {
-    rw h_b_def,
-    apply pow_nonneg,
-    linarith,
-  },
-  transitivity ((b + 1) * ↑p) ^ ord.totient,
-  {
-    rw mul_pow,
-    apply int.mul_le_mul_of_nonneg_left,
-    {
-      apply le_self_pow _ (nat_ne_zero_of_pos (nat.totient_pos h_ord_pos)),
-      rw [← nat.cast_one, int.coe_nat_le],
-      exact le_of_lt (nat.prime.one_lt h_p_prime),
-    },
-    {
-      apply pow_nonneg,
-      apply add_nonneg h_b_nonneg,
-      linarith,
-    }
-  },
-  {
-    apply pow_le_pow_of_le_left,
-    {
-      apply mul_nonneg,
-      {
-        apply add_nonneg h_b_nonneg,
-        linarith,
-      },
-      {
-        linarith,
-      }
-    },
-    {
-      cases em (b ≤ 2) with h_b_le_two h_two_lt_b,
-      {
-        have h_pow_le_two : 2 ^ (p ^ (t - 1)) ≤ (2 : ℤ),
-        {
-          transitivity (↑a ^ p ^ (t - 1)),
-          {
-            apply pow_le_pow_of_le_left,
-            { linarith, },
-            {
-              rw [← nat.cast_two, int.coe_nat_le],
-              linarith,
-            }
-          },
-          {
-            rw ← h_b_def,
-            exact h_b_le_two,
-          }
-        },
-        nth_rewrite 1 ← pow_one (2 : ℤ) at h_pow_le_two,
-        rw [pow_le_pow_iff _] at h_pow_le_two,
-        {
-          cases em (t - 1 = 0) with h_t_le_one h_t_ne_one,
-          {
-            rw nat.sub_eq_zero_iff_le at h_t_le_one,
-            have h_t_eq_one : t = 1 := by exact le_antisymm h_t_le_one ht.right,
-            subst h_t_eq_one,
-            simp only [pow_zero, pow_one] at h_b_def,
-            rw [h_b_def, ← nat.cast_two, int.coe_nat_le] at h_b_le_two,
-            have h_a_eq_two : a = 2 := by linarith,
-            subst h_a_eq_two,
-            have h_p_ne_two : p ≠ 2,
-            {
-              intro h_p_eq_two,
-              rw [h_p_eq_two, nat.coprime_self] at h_a_coprime_p,
-              linarith,
-            },
-            cases em (p = 3) with h_p_eq_three h_p_ne_three,
-            {
-              subst h_p_eq_three,
-              exfalso,
-              apply h_exception_2,
-              rw [eq_self_iff_true, and_true, ht.left, pow_one, 
-              h_ord_def, order_of_two_mod_three_eq_two h_a_coprime_p],
-              ring,
-            },
-            {
-              rw [h_b_def, coe_bit0, algebra_map.coe_one],
-              have h_five_le_p : 5 ≤ p := by exact 
-              nat.prime.five_le_of_ne_two_of_ne_three h_p_prime h_p_ne_two h_p_ne_three,
-              
-              sorry,
-            }
-          },
-          {
-            exfalso,
-            rw nat_pow_le_one_iff at h_pow_le_two,
-            cases h_pow_le_two,
-            { exact not_lt_of_le h_pow_le_two (nat.prime.one_lt h_p_prime), },
-            { exact h_t_ne_one h_pow_le_two, }
-          }
-        },
-        {
-          linarith,
-        }
-      },
-      {
-
-        transitivity 2 * (b - 1) * ↑p,
-        {
-          apply int.mul_le_mul_of_nonneg_right,
-          { linarith, },
-          { linarith, }
-        },
-        {
-          rw ← mul_geom_sum b p,
-          sorry,
-        }
-      }
     }
   }
 end
