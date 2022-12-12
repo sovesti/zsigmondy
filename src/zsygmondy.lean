@@ -189,7 +189,20 @@ end
 lemma order_of_two_mod_three_eq_two (h_coprime : (2 : ℕ).coprime 3) : 
 order_of (zmod.unit_of_coprime 2 h_coprime) = 2 :=
 begin
-  sorry,
+  haveI : nat.prime 2,
+  { exact nat.prime_two, },
+  apply order_of_eq_prime,
+  {
+    rw [← units.eq_iff, units.coe_pow, zmod.coe_unit_of_coprime, 
+    units.coe_one, nat.cast_two],
+    ring,
+  },
+  {
+    intro h,
+    rw [← units.eq_iff, zmod.coe_unit_of_coprime, 
+    units.coe_one, nat.cast_two, ← sub_eq_zero] at h,
+    norm_num at h,
+  }
 end
 
 lemma order_of_eq_one_in_units_two (h_coprime : a.coprime 2) :
@@ -234,7 +247,62 @@ end
 lemma two_mul_le_pow_sub_one (x : ℤ) (a : ℕ) (hx : 2 < x) (ha : 2 ≤ a) : 
 2 * (x - 1) * (a : ℤ) ≤ x ^ a - 1 :=
 begin
-  sorry,
+  nth_rewrite 1 mul_comm,
+  rw [mul_assoc, ← mul_geom_sum, mul_le_mul_left],
+  {
+    cases a,
+    {
+      linarith,
+    },
+    {
+      rw nat.succ_eq_add_one at ha,
+      rw nat.succ_eq_add_one,
+      have h_one_le_a : 1 ≤ a + 1 := by linarith,
+      rw [finset.range_eq_Ico, ← finset.Ico_union_Ico_eq_Ico zero_le_one h_one_le_a,
+      finset.sum_union (finset.Ico_disjoint_Ico_consecutive 0 1 (a + 1)), 
+      nat.cast_succ, nat.Ico_succ_singleton, finset.sum_singleton, pow_zero],
+      transitivity 1 + 3 * (a : ℤ),
+      { linarith, },
+      {
+        apply int.add_le_add_left _ 1,
+        have h_mul_a_eq_sum : 3 * (a : ℤ) = (finset.Ico 1 (a + 1)).sum (λ (i : ℕ), 3),
+        {
+          simp only [finset.sum_const, nat.card_Ico, nat.add_succ_sub_one, 
+          add_zero, nsmul_eq_mul, mul_comm],
+        },
+        rw h_mul_a_eq_sum,
+        apply finset.sum_le_sum,
+        intros i hi,
+        transitivity x,
+        { linarith, },
+        {
+          nth_rewrite 0 ← pow_one x,
+          apply pow_le_pow,
+          { linarith, },
+          {
+            rw finset.mem_Ico at hi,
+            exact hi.left,
+          }
+        }
+      }
+    }
+  },
+  { linarith, }
+end
+
+lemma part_enat_add_le_add_iff_left {x y z : part_enat} (hz : z ≠ ⊤) :
+z + x ≤ z + y ↔ x ≤ y := 
+begin
+  repeat {rw le_iff_lt_or_eq},
+  rw [part_enat.add_lt_add_iff_left hz, part_enat.add_left_cancel_iff hz],
+end
+
+lemma int_char_zero : char_zero ℤ :=
+begin
+  apply char_zero_of_inj_zero,
+  intros n hn,
+  rw ← nat.cast_zero at hn,
+  exact int.coe_nat_inj hn,
 end
 
 lemma le_of_order_mul_pow_eq_order_mul_pow (p q t₁ t₂ : ℕ) 
@@ -629,6 +697,30 @@ begin
       rw ← int.coe_nat_dvd,
       exact int.prime.dvd_pow' h_p_prime h_p_dvd_pow,
     },
+    have h_ne_top : multiplicity ↑p ((a : ℤ) ^ (n / p) - 1 ^ (n / p)) ≠ has_top.top,
+    {
+      rw [multiplicity.ne_top_iff_finite, multiplicity.finite_int_iff],
+      split,
+      {
+        exact nat.prime.ne_one h_p_prime,
+      },
+      {
+        rw [one_pow, ne.def, sub_eq_zero, nat.cast_pow_eq_one a (n / p)],
+        { linarith, },
+        {
+          apply nat_ne_zero_of_pos,
+          apply nat.div_pos,
+          {
+            apply nat.le_of_dvd _ h_p_dvd_n,
+            linarith,
+          },
+          {
+            exact nat.prime.pos h_p_prime,
+          },
+        },
+        { exact int_char_zero, }
+      }
+    },
     cases nat.prime.eq_two_or_odd' h_p_prime with h_p_eq_two h_p_odd,
     {
       subst h_p_eq_two,
@@ -648,7 +740,14 @@ begin
       rw [multiplicity.pow_dvd_iff_le_multiplicity,
       ← multiplicity.int.coe_nat_multiplicity, nat.cast_two,
       nat.cast_two] at h_square_dvd,
-      sorry,
+      {
+        rw [← nat.cast_two, part_enat_add_le_add_iff_left h_ne_top,
+        nat.cast_two] at h_multiplicities',
+        convert le_trans h_square_dvd h_multiplicities',
+        simp only [eq_iff_iff, false_iff, not_le],
+        rw [← nat.cast_two, ← nat.cast_one, part_enat.coe_lt_coe],
+        exact one_lt_two,
+      },
       {
         rw nat.cast_two at h_p_not_dvd_a_pow,
         exact h_p_not_dvd_a_pow,
@@ -666,8 +765,12 @@ begin
       nat_multiplicity_self p (nat.prime.two_le h_p_prime), add_comm]
       at h_multiplicities',
       rw [multiplicity.pow_dvd_iff_le_multiplicity,
-      ← multiplicity.int.coe_nat_multiplicity] at h_square_dvd,
-      sorry,
+      ← multiplicity.int.coe_nat_multiplicity, nat.cast_two] at h_square_dvd,
+      rw part_enat_add_le_add_iff_left h_ne_top at h_multiplicities',
+      convert le_trans h_square_dvd h_multiplicities',
+      simp only [eq_iff_iff, false_iff, not_le],
+      rw [← nat.cast_two, ← nat.cast_one, part_enat.coe_lt_coe],
+      exact one_lt_two,
     }
   },
   cases em (p = 2 ∧ n = 2) with h_exception h_not_exception_1,
@@ -850,12 +953,17 @@ begin
                   },
                   cases em (p = 3) with h_p_eq_three h_p_ne_three,
                   {
-                    subst h_p_eq_three,
+                    rw h_p_eq_three at h_a_coprime_p,
+                    have h_ord_eq_two : ord = 2,
+                    {
+                      rw h_ord_def,
+                      convert order_of_two_mod_three_eq_two h_a_coprime_p,
+                    },
+                    rw h_p_eq_three at ht,
                     exfalso,
                     apply h_exception_2,
-                    rw [eq_self_iff_true, and_true, ht.left, pow_one, 
-                    h_ord_def, order_of_two_mod_three_eq_two h_a_coprime_p],
-                    ring,
+                    rw [eq_self_iff_true, and_true, ht.left, pow_one, h_ord_eq_two],
+                    norm_num,
                   },
                   {
                     rw [h_b_def, coe_bit0, algebra_map.coe_one],
